@@ -1,0 +1,105 @@
+# Start FMS Services
+version: "3"
+services:
+# FMS Services
+# ETCD
+etcd:
+image: quay.io/coreos/etcd:v3.3.1
+restart: unless-stopped
+networks:
+- fms
+environment:
+- ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+- ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+- ETCD_DATA_DIR=/etcd-data
+entrypoint: /usr/local/bin/etcd
+# Rabbitmq
+rabbitmq:
+image: rabbitmq:3.7
+ports:
+- 5672:5672
+restart: unless-stopped
+networks:
+- fms
+# Influxdb
+influxdb:
+image: influxdb:1.4
+restart: unless-stopped
+networks:
+- fms
+volumes:
+- ./base/influx:/var/lib/influxdb
+grafana:
+image: grafana/grafana:5.4.5
+restart: unless-stopped
+ports:
+- 3000:3000
+networks:
+- fms
+environment:
+- GF_SECURITY_ADMIN_PASSWORD=admin
+# Mongo for the Services
+mongodb:
+image: mongo:3.6
+restart: unless-stopped
+networks:
+- fms
+volumes:
+- ./base/mongo:/data/db
+depends_on:
+- etcd
+- rabbitmq
+# Memcached for the Services
+fmsmemcached:
+image: memcached:1.5
+restart: unless-stopped
+networks:
+AMS Installation Guide OnPremises 44 of 50
+© 2020 Bosch Rexroth AG
+P.O. Box • 97814 Lohr a. Main • Germany
+- fms
+depends_on:
+- etcd
+- rabbitmq
+##############################################
+#Keycloak
+postgres:
+image: postgres
+restart: unless-stopped
+networks:
+- fms
+volumes:
+- ./keycloak/postgres-data:/var/lib/postgresql/data
+environment:
+POSTGRES_DB: keycloak
+POSTGRES_USER: keycloak
+POSTGRES_PASSWORD: 6W7VFXfzg9ABPUHZZVud
+keycloak:
+image: jboss/keycloak:6.0.1
+restart: unless-stopped
+environment:
+DB_VENDOR: POSTGRES
+DB_ADDR: postgres
+DB_DATABASE: keycloak
+DB_USER: keycloak
+DB_SCHEMA: public
+DB_PASSWORD: 6W7VFXfzg9ABPUHZZVud
+KEYCLOAK_USER: admin
+KEYCLOAK_PASSWORD: admin
+PROXY_ADDRESS_FORWARDING: "true"
+# Uncomment the line below if you want to specify JDBC parameters. The
+parameter below is just an example, and it shouldn't be used in production without
+knowledge. It is highly recommended that you read the PostgreSQL JDBC driver
+documentation in order to use it.
+#JDBC_PARAMS: "ssl=true"
+volumes:
+- /path/to/keycloak_settings.sh:/opt/jboss/keycloak_settings.sh
+ports:
+- 8443:8080
+user: root
+networks:
+- fms
+depends_on:
+- postgres
+networks:
+fms:
